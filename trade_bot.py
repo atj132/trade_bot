@@ -1,6 +1,5 @@
 import krakenex
 import numpy as np
-import matplotlib.pyplot as plt
 from pykrakenapi import KrakenAPI
 import time
 
@@ -10,27 +9,23 @@ class bot:
     def __init__(self,coin):
         
         self.coin = coin
-        self.path = 'C:/Users/Austin/Desktop/trading bot/coins/'  + coin
-        self.balance_file = open(self.path + '/balance.txt','r')
-        self.balance = float(self.balance_file.read())
-        self.mode_file = open(self.path + '/mode.txt','r')
-        self.mode = self.mode_file.read()
-        self.cbalance_file = open(self.path + '/cbalance.txt','r')
-        self.cbalance = float(self.cbalance_file.read())
+        self.starting_balance = 500
+        self.balance = self.starting_balance
+        self.mode = 'buy'
+        self.cbalance = 0
+        self.profit = 0
+        self.period = 14
+        self.values = []
+        self.rsi_values = []
+        self.price = 0
+        self.k_values = []
         
-
-        self.buy_file = open(self.path + '/last_buy.txt','r')
-        self.last_buy = float(self.buy_file.read())
-        self.buy_file.close()
-
         
-
 
     def get_price(self,kraken):
 
         
-
-
+        
         self.price = float((kraken.get_ticker_information(self.coin.upper() + 'USD'))['c'][0][0])
         
         decide = self.alg()
@@ -47,232 +42,150 @@ class bot:
         if self.mode == 'buy':
 
 
-            camount = (self.balance- 0.0026*self.balance)/self.price 
+            self.cbalance = (self.balance- 0.0026*self.balance)/self.price
+            self.mode = 'sell'
 
-            self.mode_file.close()
-            self.mode_file = open(self.path + '/mode.txt','w')
-            self.mode_file.write('sell')
-            self.mode_file.close()
-            self.balance_file.close()
-            self.balance_file = open(self.path + '/balance.txt','w')
-            self.balance_file.write('0')
-            self.balance_file.close()
-            self.cbalance_file.close()
-            self.cbalance_file = open(self.path + '/cbalance.txt','w')
-            self.cbalance_file.write(str(camount))
-            self.cbalance_file.close()
-
-            self.buy_file = open(self.path + '/last_buy.txt','w')
-            self.buy_file.write(str(self.price))
-            self.buy_file.close()
-
-            values_file = open(self.path + '/current_data.txt','w')
-            values_file.write(str(self.price))
-            values_file.close()
+            
 
             
 
         else:
+            self.mode = 'buy'
 
-            amount = self.price*(self.cbalance-0.0026*self.cbalance) 
+            amount = self.price*(self.cbalance-0.0026*self.cbalance)
 
-            print('Profit of ' + str(100*(self.price-self.last_buy)/self.last_buy)+'%')
+            
+
+            print('Profit of ' + str(100*(amount-self.balance)/self.balance)+'%')
             print('Now have: $' + str(amount))
 
-            self.mode_file.close()
-            self.mode_file = open(self.path + '/mode.txt','w')
-            self.mode_file.write('buy')
-            self.mode_file.close()
-            self.balance_file.close()
-            self.balance_file = open(self.path + '/balance.txt','w')
-            self.balance_file.write(str(amount))
-            self.balance_file.close()
-            self.cbalance_file.close()
-            self.cbalance_file = open(self.path + '/cbalance.txt','w')
-            self.cbalance_file.write('0')
-            self.cbalance_file.close()
+            self.balance = amount
 
-            values_file = open(self.path + '/current_data.txt','w')
-            values_file.write(str(self.price))
-            values_file.close()
+            self.profit = str(100*(amount-self.starting_balance)/self.starting_balance)
+            
+
+            
 
             
 
 
 
     def alg(self):
+        
+
+        self.values.append(self.price)
+
+        if len(self.values) < 20:
+            return False
+        if len(self.values) > 20:
+            self.values = self.values[1:]
+
+
+        differences = []
+
+        avg = np.average(self.values)
+        std = np.std(self.values)
+
+        upper = avg + 2*std
+        lower = avg - 2*std
+        
+        
+        for i in range(14):
+            diff = (self.values[i] - self.values[i+1])/self.values[i]
+            differences.append(diff)
 
         
 
-        all_data_file = open(self.path + '/all_data.txt','r')
-        all_data = all_data_file.read().split(',')
-        all_data_file.close()
+        avg_gain = 0
+        avg_loss = 0
+        gain_count = 0
+        loss_count = 0
 
-        values_file = open(self.path + '/current_data.txt','r')
-        values = values_file.read().split(',')
-        values_file.close()
+        for i in differences:
+            if i > 0:
+                gain_count += 1
+                avg_gain += i
 
-        all_data_file = open(self.path + '/all_data.txt','w')      
 
+            else:
+                loss_count += 1
+                avg_loss += i
 
-        values_file = open(self.path + '/current_data.txt','w')
+        if loss_count >0:
 
-        if len(all_data)> 180:
-            all_data.remove(all_data[0])
-
-        for i in all_data:
-
-            if i != '':
-                all_data_file.write(str(i)+',')
-
-        for i in values:
-
-            if i != '':
-                values_file.write(str(i)+',')
-
-        
-
-        all_data.append(self.price)
-
-        for i in range(len(all_data)):
-            if all_data[i] != '':
-                all_data[i] = float(all_data[i])
-        for i in range(len(values)):
-            if values[i] != '':
-                values[i] = float(values[i])
-
-        if len(all_data) > 170:
+            avg_loss = -avg_loss/loss_count
             
-            avg = np.average(all_data)
-            values.append(avg)
+            if gain_count > 0:
+                avg_gain = avg_gain/gain_count
 
-            values_file.write(str(avg))
+            if avg_loss > 0:
 
+                rsi = 100 - 100/(1+(avg_gain/avg_loss))
+
+            else:
+                rsi = 100
+        
             
-        all_data_file.write(str(self.price))
-                
-        values_file.close()
-        all_data_file.close()
+        else:
+            
+            rsi = 100
 
         
-    
-        
 
-        if len(values) <3:
 
-            
+        up_limit = 70
+        low_limit = 30
+
+        self.rsi_values.append(rsi)
+
+        if len(self.rsi_values) < 14:
+            return False
+        if len(self.rsi_values) > 14:
+            self.rsi_values = self.rsi_values[1:]
+
+        min_rsi = min(self.rsi_values)
+        max_rsi = max(self.rsi_values)
+
+        if max_rsi != min_rsi:
+
+            stoch_rsi = 100*(rsi-min_rsi)/(max_rsi-min_rsi)
+
+        else:
             return False
 
-        for i in range(len(all_data)):
-            all_data[i] = float(all_data[i])
-
-        
         
 
+        self.k_values.append(stoch_rsi)
 
-        y_values = np.array(values).astype(float)
+        if len(self.k_values) < 3:
+            return False
+        if len(self.k_values) > 3:
+            self.k_values = self.k_values[1:]
 
-        
-
-        x_values = np.array(range(len(y_values)))
-
-        
-        fit = np.polyfit(x_values,y_values,2)
-
-        crit_point_x = -fit[1]/(2*fit[0])
-
-        rd_deriv = fit[0]
-
-        nd_deriv = fit[1]
-
-        crit_point_y = fit[0]*crit_point_x**2 + fit[1]*crit_point_x + fit[2]
+        D = sum(self.k_values)/3
 
         
         
 
         
+                
+
 
         if self.mode == 'buy':
 
-            if rd_deriv <= 0:
-
-                values_file = open(self.path + '/current_data.txt','w')
-
-                for i in x_values:
-                    if i > len(values)/2:
-                        values_file.write(str(values[i-1]) + ',')
-                        
-                
-                values_file.write(str(self.price))
-                values_file.close()
- 
-
-                return False
-
-
-        
-
-           
-            
-            elif crit_point_x > x_values[-1]:
-
-                
-
-                if nd_deriv >= 0:
-                    values_file = open(self.path + '/current_data.txt','w')
-
-                    for i in x_values:
-                        if i > len(values)/2:
-                            values_file.write(str(values[i-1]) + ',')
-                
-                    values_file.write(str(self.price))
-                    values_file.close()
- 
-
-                    return False
-
-                else:
-                
-                    return True
-
-            elif crit_point_y >= self.price:
+            if (stoch_rsi >= D and stoch_rsi <= low_limit) and self.price <= lower:
                 return True
-
             else:
                 return False
-                
-
-            
-
-
 
         else:
 
-            #if(self.price-self.last_buy)/self.last_buy < -0.05:
-                #print('whoops')
-                #return True
-
-            if rd_deriv >= 0:
-                
-                values_file = open(self.path + '/current_data.txt','w')
-                for i in x_values:
-                    if i > len(values)/2:
-                        values_file.write(str(values[i-1]) + ',')
-                values_file.write(str(self.price))
-                values_file.close()
-
-
-                return False
             
-            elif (self.price-self.last_buy)/self.last_buy < 0.01:
-                return False
 
-            elif crit_point_x > x_values[-1]:
+            
+
+            if (stoch_rsi <= D and stoch_rsi >= up_limit) and self.price >= upper:
                 return True
-
-            elif crit_point_y <= self.price:
-                return True
-
             else:
                 return False
 

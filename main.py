@@ -10,20 +10,25 @@ kraken = KrakenAPI(api)
 
 
 #list of crypto to use
-crypto_list = ('btc','eth','ada','doge','xrp','dot','uni','bch','sol','ltc')
+crypto_list = ['btc','eth','ada','doge','xrp','dot','uni','bch','sol','ltc']
+
+bot1 = tb.bot(crypto_list[0])
+bot2 = tb.bot(crypto_list[1])
+bot3 = tb.bot(crypto_list[2])
+bot4 = tb.bot(crypto_list[3])
+bot5 = tb.bot(crypto_list[4])
+bot6 = tb.bot(crypto_list[5])
+bot7 = tb.bot(crypto_list[6])
+bot8 = tb.bot(crypto_list[7])
+bot9 = tb.bot(crypto_list[8])
+bot10 = tb.bot(crypto_list[9])
+
+bot_list = [bot1,bot2,bot3,bot4,bot5,bot6,bot7,bot8,bot9,bot10]
+
 
 #time between looking at prices
-wait_time = 1
+wait_time = 6
 
-path = 'C:/Users/Austin/Desktop/trading bot/coins/'
-
-for i in crypto_list:
-    file = open(path + i + '/current_data.txt','w')
-    file.close()
-
-for i in crypto_list:
-    file = open(path + i + '/all_data.txt','w')
-    file.close()
 
 
 stop = False
@@ -45,41 +50,47 @@ def cash_out(cryptos):
 
     while rem_coins < 10:
 
+        rem_coins = 0
+
         for j in coins:
             
-            trader = tb.bot(j)
-            if trader.mode == 'buy':
+            
+            if j.mode == 'buy':
                 rem_coins += 1
 
             else:
-                if trader.get_price(kraken):
-                    trader.trade(kraken)
+                if j.get_price(kraken):
+                    j.trade(kraken)
 
             time.sleep(wait_time)
 
         
-        rem_coins = 0
+        
 
         
 
 
     print('Cashed Out')
-
-
+    for i in coins:
+        print("----------")
+        print(i.coin + " stats")
+        print("Final balance: "+str(i.balance))
+        print("Final profit: " +i.profit)
+        
 
 
 while 1==1:
 
     try:
-        for i in crypto_list:
-            trader = tb.bot(i)
+        for i in bot_list:
+            
         
-            if trader.get_price(kraken):
-                trader.trade(kraken)
+            if i.get_price(kraken):
+                i.trade(kraken)
 
             time.sleep(wait_time)
         if stop:
-            cash_out(crypto_list)
+            cash_out(bot_list)
             break
 
         
@@ -89,6 +100,7 @@ while 1==1:
 
             
     except:
+        print('oops')
         break
 
 
